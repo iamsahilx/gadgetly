@@ -1,13 +1,13 @@
-# Jyoti Sales — Electronics E-Commerce Platform
+# Gadgetly — Electronics E-Commerce Platform
 
-Full-stack e-commerce site for **Jyoti Sales** ("Jyoti Television Center"), Rampura Phul, Punjab.
+Full-stack e-commerce site for **Gadgetly** ("Gadgetly Electronics"), Rampura Phul, Punjab.
 Java 21 / Spring Boot backend, React + Vite + TypeScript frontend, PostgreSQL, JWT auth, and a
 pluggable payment-gateway architecture that ships with a sandboxed dummy provider.
 
 ```
-jyoti-sales/
-├── jyoti-sales-backend/     Spring Boot API (Java 21, Postgres, JWT, Flyway)
-├── jyoti-sales-frontend/    React 18 + Vite + TS + Tailwind storefront & admin panel
+gadgetly/
+├── gadgetly-backend/     Spring Boot API (Java 21, Postgres, JWT, Flyway)
+├── gadgetly-frontend/    React 18 + Vite + TS + Tailwind storefront & admin panel
 ├── docker-compose.yml       One-command startup for all three services
 └── .env.example             Copy to .env and fill in real values
 ```
@@ -32,14 +32,14 @@ Flyway runs automatically on backend startup and seeds demo data (see below). No
 
 **Backend** (needs Java 21, Maven, a running Postgres instance):
 ```bash
-cd jyoti-sales-backend
-createdb jyoti_sales   # or use your own Postgres instance; update application.yml / env vars to match
+cd gadgetly-backend
+createdb gadgetly   # or use your own Postgres instance; update application.yml / env vars to match
 mvn spring-boot:run
 ```
 
 **Frontend** (needs Node 20+):
 ```bash
-cd jyoti-sales-frontend
+cd gadgetly-frontend
 cp .env.example .env    # set VITE_API_BASE_URL if backend isn't on localhost:8080
 npm install
 npm run dev
@@ -49,7 +49,7 @@ npm run dev
 
 | Role     | Email                     | Password      |
 |----------|---------------------------|---------------|
-| Admin    | admin@jyotisales.in       | Admin@123     |
+| Admin    | admin@gadgetly.in       | Admin@123     |
 | Customer | customer@example.com      | Customer@123  |
 
 **Change the admin password immediately in any real deployment.** These are demo credentials only.
@@ -63,10 +63,10 @@ Raw spec: `http://localhost:8080/v3/api-docs`
 
 ```bash
 # backend (JUnit5 + Mockito)
-cd jyoti-sales-backend && mvn test
+cd gadgetly-backend && mvn test
 
 # frontend (Vitest)
-cd jyoti-sales-frontend && npm run test
+cd gadgetly-frontend && npm run test
 ```
 
 ---
@@ -74,7 +74,7 @@ cd jyoti-sales-frontend && npm run test
 ## Payment gateway — how it's wired
 
 The checkout flow depends only on the `PaymentGatewayService` interface
-(`jyoti-sales-backend/src/main/java/com/jyotisales/service/payment/PaymentGatewayService.java`).
+(`gadgetly-backend/src/main/java/com/gadgetly/service/payment/PaymentGatewayService.java`).
 **The currently active provider is `dummy`** (`DummyPaymentGatewayProvider`), controlled by:
 
 ```
@@ -100,7 +100,7 @@ PAYMENT_PROVIDER=dummy        # env var / .env override
 ### Switching to a real gateway (Razorpay / PayU / etc.)
 
 1. Implement `PaymentGatewayService` in a new class, e.g. `RazorpayGatewayProvider`
-   (starter template at `jyoti-sales-backend/src/main/resources/payment-provider-templates/RazorpayGatewayProvider.java.template`
+   (starter template at `gadgetly-backend/src/main/resources/payment-provider-templates/RazorpayGatewayProvider.java.template`
    — rename to `.java` and drop it into `service/payment/` to activate).
 2. Add the provider's SDK to `pom.xml` and its API keys as env vars.
 3. Set `PAYMENT_PROVIDER=razorpay` (or `payu`).
@@ -146,7 +146,7 @@ to avoid a flash of the wrong theme.
 - Mobile-first (360px–4K) with a bottom tab bar on mobile; theme tokens are tuned for WCAG AA
   contrast in both light and dark modes
 
-All theme colors are defined as CSS custom properties in `jyoti-sales-frontend/src/index.css`
+All theme colors are defined as CSS custom properties in `gadgetly-frontend/src/index.css`
 (`:root` for light, `:root.dark` for dark) and surfaced as Tailwind utilities in `tailwind.config.js`
 — change the palette in one place and it propagates everywhere.
 
@@ -159,7 +159,7 @@ literally as `[[...]]` in the running app. Search-and-replace them before launch
 
 | Placeholder | Used in |
 |---|---|
-| `[[Full shop address, PIN]]` | `jyoti-sales-frontend/src/lib/business.ts` (`BUSINESS.address`), backend `application.yml` (`app.business.address`), footer, About-style content |
+| `[[Full shop address, PIN]]` | `gadgetly-frontend/src/lib/business.ts` (`BUSINESS.address`), backend `application.yml` (`app.business.address`), footer, About-style content |
 | `[[10-digit number]]` (phone) | `business.ts` (`BUSINESS.phone`, `BUSINESS.whatsapp`), `application.yml` (`app.business.phone`), footer |
 | `[[e.g. 10AM–8:30PM, closed Sunday]]` | `business.ts` (`BUSINESS.timings`), footer |
 | `[[GSTIN]]` | `business.ts` (`BUSINESS.gstin`), `application.yml` (`app.business.gstin`), footer, would-be invoice template |

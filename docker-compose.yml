@@ -3,26 +3,26 @@ version: '3.9'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: jyoti-sales-postgres
+    container_name: gadgetly-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-jyoti_sales}
-      POSTGRES_USER: ${DB_USER:-jyoti}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-jyoti_pass}
+      POSTGRES_DB: ${DB_NAME:-gadgetly}
+      POSTGRES_USER: ${DB_USER:-gadgetly}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-gadgetly_pass}
     ports:
       - "5432:5432"
     volumes:
-      - jyoti_pg_data:/var/lib/postgresql/data
+      - gadgetly_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-jyoti} -d ${DB_NAME:-jyoti_sales}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gadgetly} -d ${DB_NAME:-gadgetly}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   backend:
     build:
-      context: ./jyoti-sales-backend
-    container_name: jyoti-sales-backend
+      context: ./gadgetly-backend
+    container_name: gadgetly-backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -30,9 +30,9 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-jyoti_sales}
-      DB_USER: ${DB_USER:-jyoti}
-      DB_PASSWORD: ${DB_PASSWORD:-jyoti_pass}
+      DB_NAME: ${DB_NAME:-gadgetly}
+      DB_USER: ${DB_USER:-gadgetly}
+      DB_PASSWORD: ${DB_PASSWORD:-gadgetly_pass}
       JWT_SECRET: ${JWT_SECRET:-change-this-super-secret-key-min-32-chars-long-please}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-dummy}
@@ -46,10 +46,10 @@ services:
 
   frontend:
     build:
-      context: ./jyoti-sales-frontend
+      context: ./gadgetly-frontend
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api}
-    container_name: jyoti-sales-frontend
+    container_name: gadgetly-frontend
     restart: unless-stopped
     depends_on:
       - backend
@@ -57,4 +57,4 @@ services:
       - "5173:80"
 
 volumes:
-  jyoti_pg_data:
+  gadgetly_pg_data:
