@@ -23,6 +23,7 @@ public class User extends BaseEntity {
     @Column(unique = true)
     private String phone;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String passwordHash;
 
@@ -32,6 +33,7 @@ public class User extends BaseEntity {
 
     private boolean blocked = false;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Address> addresses = new ArrayList<>();
 }
