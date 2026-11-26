@@ -36,7 +36,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-super-secret-key-min-32-chars-long-please}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-dummy}
-      BIZ_NAME: ${BIZ_NAME:-Jyoti Sales}
+      BIZ_NAME: ${BIZ_NAME:-Gadgetly}
       BIZ_ADDRESS: ${BIZ_ADDRESS:-[[Full shop address, PIN]]}
       BIZ_PHONE: ${BIZ_PHONE:-[[10-digit number]]}
       BIZ_EMAIL: ${BIZ_EMAIL:-[[email]]}

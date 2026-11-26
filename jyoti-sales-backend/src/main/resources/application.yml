@@ -40,7 +40,7 @@ app:
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
   business:
-    name: ${BIZ_NAME:Jyoti Sales}
+    name: ${BIZ_NAME:Gadgetly}
     address: ${BIZ_ADDRESS:[[Full shop address, PIN]]}
     phone: ${BIZ_PHONE:[[10-digit number]]}
     email: ${BIZ_EMAIL:[[email]]}

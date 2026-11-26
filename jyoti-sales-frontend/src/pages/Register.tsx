@@ -28,7 +28,7 @@ export default function Register() {
   return (
     <div className="mx-auto max-w-md px-4 py-20">
       <h1 className="font-display text-2xl font-bold mb-2">Create your account</h1>
-      <p className="text-ink/50 mb-8">Join Jyoti Sales for faster checkout and order tracking.</p>
+      <p className="text-ink/50 mb-8">Join Gadgetly for faster checkout and order tracking.</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input placeholder="Full Name" value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
           className="w-full bg-panel border border-hairline/15 rounded-lg px-4 py-3 text-sm" required />

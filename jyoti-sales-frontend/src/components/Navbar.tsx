@@ -21,7 +21,7 @@ export default function Navbar({ cartCount }: { cartCount: number }) {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2 shrink-0">
-            <span className="font-display text-xl font-bold tracking-tight text-gradient">Jyoti Sales</span>
+            <span className="font-display text-xl font-bold tracking-tight text-gradient">Gadgetly</span>
           </Link>
 
           <form onSubmit={submitSearch} className="hidden md:flex flex-1 max-w-xl">

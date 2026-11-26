@@ -15,8 +15,8 @@ public class OpenApiConfig {
     public OpenAPI jyotiSalesOpenAPI() {
         final String schemeName = "bearerAuth";
         return new OpenAPI()
-                .info(new Info().title("Jyoti Sales API").version("1.0")
-                        .description("Jyoti Sales / Jyoti Television Center e-commerce API"))
+                .info(new Info().title("Gadgetly API").version("1.0")
+                        .description("Gadgetly e-commerce API"))
                 .addSecurityItem(new SecurityRequirement().addList(schemeName))
                 .components(new Components().addSecuritySchemes(schemeName,
                         new SecurityScheme().name(schemeName).type(SecurityScheme.Type.HTTP)

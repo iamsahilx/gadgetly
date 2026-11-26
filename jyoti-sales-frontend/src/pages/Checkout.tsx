@@ -353,7 +353,7 @@ export default function Checkout() {
                 >
                   <div className="absolute inset-0 [backface-visibility:hidden] rounded-2xl bg-gradient-to-br from-panel to-surface2 border border-hairline/15 p-5 flex flex-col justify-between shadow-glow">
                     <div className="flex justify-between items-start">
-                      <span className="text-xs text-ink/40">Jyoti Sales Test Card</span>
+                      <span className="text-xs text-ink/40">Gadgetly Test Card</span>
                       <span className="text-[10px] bg-coral/20 text-coral px-2 py-0.5 rounded-full">TEST MODE</span>
                     </div>
                     <p className="font-mono text-lg tracking-widest">{card.number || '•••• •••• •••• ••••'}</p>

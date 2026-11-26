@@ -28,7 +28,7 @@ export default function Login() {
   return (
     <div className="mx-auto max-w-md px-4 py-20">
       <h1 className="font-display text-2xl font-bold mb-2">Welcome back</h1>
-      <p className="text-ink/50 mb-8">Log in to your Jyoti Sales account.</p>
+      <p className="text-ink/50 mb-8">Log in to your Gadgetly account.</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input placeholder="Email or Phone" value={form.usernameOrPhone}
           onChange={(e) => setForm((f) => ({ ...f, usernameOrPhone: e.target.value }))}
