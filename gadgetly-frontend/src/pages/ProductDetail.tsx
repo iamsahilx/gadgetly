@@ -69,7 +69,7 @@ export default function ProductDetail() {
     if (galleryImgRef.current) {
       triggerFlyToCart(galleryImgRef.current.src, galleryImgRef.current)
     }
-    await addToCart(product, qty, selectedVariant)
+    await addToCart(product!, qty, selectedVariant)
     setAdded(true)
     setTimeout(() => setAdded(false), 1500)
   }
@@ -77,7 +77,7 @@ export default function ProductDetail() {
   async function submitReview(e: React.FormEvent) {
     e.preventDefault()
     try {
-      await api.post('/reviews', { productId: product.id, ...reviewForm })
+      await api.post('/reviews', { productId: product!.id, ...reviewForm })
       setReviewMsg('Thanks for your review!')
       setReviewForm({ rating: 5, title: '', body: '' })
       refetchReviews()
