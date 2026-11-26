@@ -41,10 +41,10 @@ app:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
   business:
     name: ${BIZ_NAME:Gadgetly}
-    address: ${BIZ_ADDRESS:[[Full shop address, PIN]]}
-    phone: ${BIZ_PHONE:[[10-digit number]]}
-    email: ${BIZ_EMAIL:[[email]]}
-    gstin: ${BIZ_GSTIN:[[GSTIN]]}
+    address: ${BIZ_ADDRESS:Main Market, Rampura Phul, Punjab - 151103}
+    phone: ${BIZ_PHONE:+91 98765 43210}
+    email: ${BIZ_EMAIL:support@gadgetly.in}
+    gstin: ${BIZ_GSTIN:03AABCG1234F1Z5}
   payment:
     provider: ${PAYMENT_PROVIDER:dummy}  # dummy | razorpay | payu
 

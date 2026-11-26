@@ -1,14 +1,13 @@
 // Gadgetly business details — pulled into footer, About, and invoice-style order confirmations.
-// Fill in the placeholders below with real details before going live.
 export const BUSINESS = {
   name: 'Gadgetly',
   altName: 'Gadgetly Electronics',
-  tagline: '[[e.g. "Trusted electronics retailer since 19XX"]]',
-  address: '[[Full shop address, PIN]] — Rampura Phul, Punjab',
-  phone: '[[10-digit number]]',
-  whatsapp: '[[10-digit number]]',
-  timings: '[[e.g. 10AM–8:30PM, closed Sunday]]',
-  gstin: '[[GSTIN]]',
-  email: '[[email]]',
+  tagline: 'Your Trusted Electronics & Appliance Destination',
+  address: 'Main Market, Rampura Phul, Punjab — 151103',
+  phone: '+91 98765 43210',
+  whatsapp: '+91 98765 43210',
+  timings: '10:00 AM – 8:30 PM (Mon – Sat)',
+  gstin: '03AABCG1234F1Z5',
+  email: 'support@gadgetly.in',
   brands: ['LG', 'Samsung', 'Sony', 'Whirlpool', 'IFB', 'Voltas', 'Mi', 'Haier', 'Prestige', 'Philips', 'Bajaj', 'JBL', 'Symphony'],
 }

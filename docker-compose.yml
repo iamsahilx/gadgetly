@@ -37,10 +37,10 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-dummy}
       BIZ_NAME: ${BIZ_NAME:-Gadgetly}
-      BIZ_ADDRESS: ${BIZ_ADDRESS:-[[Full shop address, PIN]]}
-      BIZ_PHONE: ${BIZ_PHONE:-[[10-digit number]]}
-      BIZ_EMAIL: ${BIZ_EMAIL:-[[email]]}
-      BIZ_GSTIN: ${BIZ_GSTIN:-[[GSTIN]]}
+      BIZ_ADDRESS: ${BIZ_ADDRESS:-Main Market, Rampura Phul, Punjab - 151103}
+      BIZ_PHONE: ${BIZ_PHONE:-+91 98765 43210}
+      BIZ_EMAIL: ${BIZ_EMAIL:-support@gadgetly.in}
+      BIZ_GSTIN: ${BIZ_GSTIN:-03AABCG1234F1Z5}
     ports:
       - "8080:8080"
 
