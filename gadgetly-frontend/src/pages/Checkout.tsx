@@ -143,7 +143,9 @@ export default function Checkout() {
     }
   }
 
-  if (!cart || cart.items.length === 0) {
+  // Only the address step needs the cart: placing the order empties it on the server, and the
+  // payment/result steps must stay visible after the cart query is refetched.
+  if (step === 'address' && (!cart || cart.items.length === 0)) {
     return <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">Your cart is empty.</div>
   }
 
@@ -317,7 +319,7 @@ export default function Checkout() {
           )}
 
           <button onClick={placeOrder} className="w-full rounded-full bg-coral text-onaccent font-semibold py-3 mt-4 hover:shadow-glow transition-shadow">
-            Continue to Payment · {formatINR(cart.total)}
+            Continue to Payment · {formatINR(cart!.total)}
           </button>
         </div>
       )}
