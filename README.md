@@ -4,6 +4,9 @@ Full-stack e-commerce site for **Gadgetly** ("Gadgetly Electronics"), Rampura Ph
 Java 21 / Spring Boot backend, React + Vite + TypeScript frontend, PostgreSQL, JWT auth, and a
 pluggable payment-gateway architecture that ships with a sandboxed dummy provider.
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the system and checkout flow, and
+[IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md) for the lab verification record.
+
 ```
 gadgetly/
 ├── gadgetly-backend/     Spring Boot API (Java 21, Postgres, JWT, Flyway)
@@ -17,7 +20,7 @@ gadgetly/
 Requires Docker + Docker Compose.
 
 ```bash
-cp .env.example .env      # edit values as needed (safe defaults are provided)
+cp .env.example .env      # demo-only defaults; change credentials before public use
 docker compose up --build
 ```
 
@@ -33,9 +36,17 @@ Flyway runs automatically on backend startup and seeds demo data (see below). No
 **Backend** (needs Java 21, Maven, a running Postgres instance):
 ```bash
 cd gadgetly-backend
-createdb gadgetly   # or use your own Postgres instance; update application.yml / env vars to match
+# First run only, using the demo database credentials from application.yml:
+psql postgres -c "CREATE USER gadgetly WITH PASSWORD 'gadgetly_pass';"
+createdb -O gadgetly gadgetly
 mvn spring-boot:run
 ```
+
+On macOS with Homebrew `postgresql@16`, run `brew services start postgresql@16` first and
+add `/opt/homebrew/opt/postgresql@16/bin` to `PATH` so `psql` and `createdb` are available.
+Select Java 21 with `export JAVA_HOME=$(/usr/libexec/java_home -v 21)` before Maven. If the
+demo role/database already exists, skip the two first-run creation commands. For a different
+Postgres installation, use its `psql`/`createdb` paths and set `DB_*` variables accordingly.
 
 **Frontend** (needs Node 20+):
 ```bash
@@ -62,12 +73,14 @@ Raw spec: `http://localhost:8080/v3/api-docs`
 ## Running tests
 
 ```bash
-# backend (JUnit5 + Mockito)
-cd gadgetly-backend && mvn test
+# backend (JUnit5, service and security integration tests)
+cd gadgetly-backend && mvn -B verify
 
-# frontend (Vitest)
-cd gadgetly-frontend && npm run test
+# frontend (Vitest, TypeScript and production bundle)
+cd gadgetly-frontend && npm ci && npm test && npm run build
 ```
+
+GitHub Actions runs these checks on pull requests and pushes to `main`.
 
 ---
 
@@ -152,23 +165,14 @@ All theme colors are defined as CSS custom properties in `gadgetly-frontend/src/
 
 ---
 
-## ⚠️ Unfilled business-detail placeholders (Section 1)
+## Demo content to replace before real use
 
-The following placeholders from the original spec are **not yet filled in** and currently render
-literally as `[[...]]` in the running app. Search-and-replace them before launch:
-
-| Placeholder | Used in |
-|---|---|
-| `[[Full shop address, PIN]]` | `gadgetly-frontend/src/lib/business.ts` (`BUSINESS.address`), backend `application.yml` (`app.business.address`), footer, About-style content |
-| `[[10-digit number]]` (phone) | `business.ts` (`BUSINESS.phone`, `BUSINESS.whatsapp`), `application.yml` (`app.business.phone`), footer |
-| `[[e.g. 10AM–8:30PM, closed Sunday]]` | `business.ts` (`BUSINESS.timings`), footer |
-| `[[GSTIN]]` | `business.ts` (`BUSINESS.gstin`), `application.yml` (`app.business.gstin`), footer, would-be invoice template |
-| `[[email]]` | `business.ts` (`BUSINESS.email`), `application.yml` (`app.business.email`), footer |
-| `[[e.g. "Trusted electronics retailer since 19XX"]]` | `business.ts` (`BUSINESS.tagline`), homepage hero |
-
-All of these are centralized in **one file** on the frontend (`src/lib/business.ts`) and as env vars
-on the backend (`BIZ_NAME`, `BIZ_ADDRESS`, `BIZ_PHONE`, `BIZ_EMAIL`, `BIZ_GSTIN` in `.env` /
-`docker-compose.yml`), so updating them is a single edit in each place.
+The storefront shows the known location, Rampura Phul, Punjab, but omits unverified phone,
+email, opening hours, street address and GSTIN. Add verified details in
+`gadgetly-frontend/src/lib/business.ts` and the corresponding `BIZ_*` values in `.env` when
+the shop supplies them. The seeded account passwords and JWT secret are demo values; change
+them before any public deployment. Product photos are placeholders. The payment provider is
+simulation only and does not collect real money.
 
 ## What's scaffolded vs. simplified in this build
 
