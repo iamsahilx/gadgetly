@@ -20,16 +20,16 @@ public class PaymentController {
 
     @PostMapping("/initiate")
     public ResponseEntity<PaymentResponse> initiate(@Valid @RequestBody PaymentInitiateRequest req) {
-        return ResponseEntity.ok(paymentService.initiate(req));
+        return ResponseEntity.ok(paymentService.initiate(CurrentUser.id(), req));
     }
 
     @PostMapping("/verify")
     public ResponseEntity<PaymentResponse> verify(@Valid @RequestBody PaymentVerifyRequest req) {
-        return ResponseEntity.ok(paymentService.verify(req.paymentId(), req.providerReference()));
+        return ResponseEntity.ok(paymentService.verify(CurrentUser.id(), req.paymentId(), req.providerReference()));
     }
 
     @GetMapping("/{id}/status")
     public ResponseEntity<PaymentResponse> status(@PathVariable Long id) {
-        return ResponseEntity.ok(paymentService.getStatus(id));
+        return ResponseEntity.ok(paymentService.getStatus(CurrentUser.id(), id));
     }
 }

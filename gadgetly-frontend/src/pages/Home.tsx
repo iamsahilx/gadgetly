@@ -5,6 +5,7 @@ import { api } from '../lib/api'
 import { Product, Category, Banner } from '../types'
 import ProductCard from '../components/ProductCard'
 import SkeletonCard from '../components/SkeletonCard'
+import RetryMessage from '../components/RetryMessage'
 import { ShieldCheck, Truck, CreditCard, Headphones } from 'lucide-react'
 import { BUSINESS } from '../lib/business'
 import Reveal from '../components/Reveal'
@@ -18,11 +19,11 @@ export default function Home() {
     queryKey: ['categories'],
     queryFn: async () => (await api.get<Category[]>('/categories')).data,
   })
-  const { data: featured, isLoading } = useQuery({
+  const { data: featured, isLoading: featuredLoading, isError: featuredError, refetch: refetchFeatured } = useQuery({
     queryKey: ['products', 'featured'],
     queryFn: async () => (await api.get('/products', { params: { featured: true, size: 8 } })).data.content as Product[],
   })
-  const { data: latest } = useQuery({
+  const { data: latest, isLoading: latestLoading, isError: latestError, refetch: refetchLatest } = useQuery({
     queryKey: ['products', 'latest'],
     queryFn: async () => (await api.get('/products', { params: { size: 8, sortBy: 'createdAt', sortDir: 'desc' } })).data.content as Product[],
   })
@@ -109,11 +110,15 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <Reveal>
           <h2 className="font-display text-2xl font-bold mb-6">Featured Deals</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {isLoading
-              ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-              : featured?.map((p) => <ProductCard key={p.id} product={p} />)}
-          </div>
+          {featuredError ? (
+            <RetryMessage message="Featured products could not be loaded." onRetry={() => void refetchFeatured()} />
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+              {featuredLoading
+                ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+                : featured?.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          )}
         </Reveal>
       </section>
 
@@ -121,9 +126,15 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 pb-16">
         <Reveal>
           <h2 className="font-display text-2xl font-bold mb-6">New Arrivals</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {latest?.map((p) => <ProductCard key={p.id} product={p} />)}
-          </div>
+          {latestError ? (
+            <RetryMessage message="New arrivals could not be loaded." onRetry={() => void refetchLatest()} />
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+              {latestLoading
+                ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+                : latest?.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          )}
         </Reveal>
       </section>
     </div>

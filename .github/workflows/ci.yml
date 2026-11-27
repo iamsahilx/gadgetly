@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: gadgetly-backend/pom.xml
+      - name: Test and package backend
+        working-directory: gadgetly-backend
+        run: mvn -B verify
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: gadgetly-frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: gadgetly-frontend
+        run: npm ci
+      - name: Test frontend
+        working-directory: gadgetly-frontend
+        run: npm test
+      - name: Typecheck and build frontend
+        working-directory: gadgetly-frontend
+        run: npm run build
+
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build application images
+        run: docker compose build backend frontend

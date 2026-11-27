@@ -19,9 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -36,6 +39,8 @@ public class ProductService {
     public Page<ProductResponse> search(String q, Long categoryId, String brand,
                                          BigDecimal minPrice, BigDecimal maxPrice,
                                          Double minRating, Boolean featured, Pageable pageable) {
+        // A storefront category includes products in its subcategories as well.
+        Set<Long> categoryIds = categoryId == null ? Set.of() : categoryAndDescendantIds(categoryId);
         Specification<Product> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.isTrue(root.get("active")));
@@ -46,7 +51,7 @@ public class ProductService {
                         cb.like(cb.lower(root.get("brand")), like)
                 ));
             }
-            if (categoryId != null) predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+            if (categoryId != null) predicates.add(root.get("category").get("id").in(categoryIds));
             if (brand != null && !brand.isBlank()) predicates.add(cb.equal(cb.lower(root.get("brand")), brand.toLowerCase()));
             if (minPrice != null) predicates.add(cb.ge(root.get("price"), minPrice));
             if (maxPrice != null) predicates.add(cb.le(root.get("price"), maxPrice));
@@ -58,9 +63,15 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
+    public Page<ProductResponse> listForAdmin(Pageable pageable) {
+        return productRepository.findAll(pageable).map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
     public ProductResponse getBySlug(String slug) {
         Product product = productRepository.findBySlug(slug)
                 .orElseThrow(() -> ApiException.notFound("Product not found"));
+        if (!product.isActive()) throw ApiException.notFound("Product not found");
         return toResponse(product);
     }
 
@@ -68,6 +79,7 @@ public class ProductService {
     public ProductResponse getById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Product not found"));
+        if (!product.isActive()) throw ApiException.notFound("Product not found");
         return toResponse(product);
     }
 
@@ -102,6 +114,9 @@ public class ProductService {
     public ProductResponse update(Long id, ProductRequest req) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Product not found"));
+        if (!product.getSku().equals(req.sku()) && productRepository.existsBySku(req.sku())) {
+            throw ApiException.conflict("SKU already exists: " + req.sku());
+        }
         Category category = categoryRepository.findById(req.categoryId())
                 .orElseThrow(() -> ApiException.notFound("Category not found"));
         applyRequest(product, req, category);
@@ -110,11 +125,27 @@ public class ProductService {
 
     @Transactional
     public void delete(Long id) {
-        if (!productRepository.existsById(id)) throw ApiException.notFound("Product not found");
-        productRepository.deleteById(id);
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("Product not found"));
+        // Orders, cart items, and reviews reference products. Hide instead of deleting history.
+        product.setActive(false);
     }
 
     private void applyRequest(Product product, ProductRequest req, Category category) {
+        if (req.mrp().compareTo(req.price()) < 0) {
+            throw ApiException.badRequest("MRP cannot be lower than the selling price");
+        }
+        if (req.variants() != null) {
+            for (ProductRequest.VariantRequest variant : req.variants()) {
+                BigDecimal delta = variant.priceDelta() != null ? variant.priceDelta() : BigDecimal.ZERO;
+                if (req.price().add(delta).compareTo(BigDecimal.ZERO) < 0) {
+                    throw ApiException.badRequest("Variant price cannot be negative");
+                }
+                if (variant.stock() != null && variant.stock() < 0) {
+                    throw ApiException.badRequest("Variant stock cannot be negative");
+                }
+            }
+        }
         product.setName(req.name());
         product.setSlug(SlugUtil.toSlug(req.name()) + "-" + req.sku().toLowerCase());
         product.setSku(req.sku());
@@ -132,8 +163,8 @@ public class ProductService {
             product.setSpecsJson("{}");
         }
 
-        product.getImages().clear();
         if (req.imageUrls() != null) {
+            product.getImages().clear();
             int order = 0;
             for (String url : req.imageUrls()) {
                 ProductImage img = new ProductImage();
@@ -146,8 +177,8 @@ public class ProductService {
             }
         }
 
-        product.getVariants().clear();
         if (req.variants() != null) {
+            product.getVariants().clear();
             for (ProductRequest.VariantRequest v : req.variants()) {
                 ProductVariant variant = new ProductVariant();
                 variant.setProduct(product);
@@ -159,6 +190,20 @@ public class ProductService {
                 product.getVariants().add(variant);
             }
         }
+    }
+
+    private Set<Long> categoryAndDescendantIds(Long categoryId) {
+        Set<Long> ids = new HashSet<>();
+        ArrayDeque<Long> pending = new ArrayDeque<>();
+        pending.add(categoryId);
+        while (!pending.isEmpty()) {
+            Long id = pending.removeFirst();
+            if (ids.add(id)) {
+                categoryRepository.findByParentIdOrderByDisplayOrderAsc(id).stream()
+                        .map(Category::getId).forEach(pending::addLast);
+            }
+        }
+        return ids;
     }
 
     ProductResponse toResponse(Product p) {

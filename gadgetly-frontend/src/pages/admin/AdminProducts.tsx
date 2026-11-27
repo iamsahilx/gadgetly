@@ -24,7 +24,7 @@ export default function AdminProducts() {
   })
   const { data } = useQuery({
     queryKey: ['admin-products'],
-    queryFn: async () => (await api.get('/products', { params: { size: 100 } })).data,
+    queryFn: async () => (await api.get('/admin/products', { params: { size: 100 } })).data,
   })
 
   function flatCategories(cats: Category[] = []): Category[] {
@@ -48,7 +48,7 @@ export default function AdminProducts() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Delete this product?')) return
+    if (!confirm('Hide this product from the storefront? You can restore it by editing the product and checking Active.')) return
     await api.delete(`/admin/products/${id}`)
     qc.invalidateQueries({ queryKey: ['admin-products'] })
   }
@@ -74,7 +74,9 @@ export default function AdminProducts() {
       active: form.active,
       specs,
       imageUrls: form.imageUrls.split('\n').map((s) => s.trim()).filter(Boolean),
-      variants: [],
+      // Omitting variants on edit preserves existing variants and their IDs.
+      // Recreating them would break cart items that reference those IDs.
+      variants: form.id ? null : [],
     }
     try {
       if (form.id) {
@@ -150,7 +152,7 @@ export default function AdminProducts() {
                 <td className="p-3">{p.active ? <span className="text-plum">Active</span> : <span className="text-ink/40">Hidden</span>}</td>
                 <td className="p-3 flex gap-2">
                   <button onClick={() => startEdit(p)}><Pencil className="h-4 w-4 text-ink/60 hover:text-coral" /></button>
-                  <button onClick={() => handleDelete(p.id)}><Trash2 className="h-4 w-4 text-ink/60 hover:text-red-400" /></button>
+                  {p.active && <button aria-label={`Hide ${p.name}`} title="Hide from storefront" onClick={() => handleDelete(p.id)}><Trash2 className="h-4 w-4 text-ink/60 hover:text-red-400" /></button>}
                 </td>
               </tr>
             ))}

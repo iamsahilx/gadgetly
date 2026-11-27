@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import BottomNav from './components/BottomNav'
@@ -33,12 +33,10 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <Navbar cartCount={count} />
       <main className="flex-1">
-        <AnimatePresence mode="wait">
-          <motion.div
+        <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.22, ease: 'easeInOut' }}
           >
             <Routes location={location}>
@@ -65,8 +63,7 @@ export default function App() {
 
               <Route path="*" element={<div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">Page not found.</div>} />
             </Routes>
-          </motion.div>
-        </AnimatePresence>
+        </motion.div>
       </main>
       <Footer />
       <BottomNav cartCount={count} />

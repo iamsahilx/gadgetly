@@ -3,10 +3,11 @@ import { api, apiErrorMessage } from '../lib/api'
 import { Order, Address, User } from '../types'
 import { formatINR } from '../lib/format'
 import { useAuthStore } from '../store/authStore'
-import { Navigate, Link } from 'react-router-dom'
+import { Navigate, Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import clsx from 'clsx'
+import { savePendingOrderId } from '../lib/checkoutSession'
 import {
   Package, MapPin, User as UserIcon, ChevronDown, ChevronUp,
   Clock, CheckCircle2, Truck, Box, Star, XCircle, Plus, Trash2, Edit3, Save, X
@@ -15,7 +16,7 @@ import {
 // ── Status config ──
 const TRACKING_STEPS = ['PENDING', 'CONFIRMED', 'PACKED', 'SHIPPED', 'DELIVERED'] as const
 const statusMeta: Record<string, { label: string; icon: typeof Clock; color: string }> = {
-  PENDING: { label: 'Order Placed', icon: Clock, color: 'text-amber-400' },
+  PENDING: { label: 'Payment Pending', icon: Clock, color: 'text-amber-400' },
   CONFIRMED: { label: 'Confirmed', icon: CheckCircle2, color: 'text-blue-400' },
   PACKED: { label: 'Packed', icon: Box, color: 'text-violet-400' },
   SHIPPED: { label: 'Shipped', icon: Truck, color: 'text-cyan-400' },
@@ -27,7 +28,8 @@ const statusMeta: Record<string, { label: string; icon: typeof Clock; color: str
 type Tab = 'orders' | 'addresses' | 'account'
 
 export default function Profile() {
-  const { accessToken, fullName } = useAuthStore()
+  const navigate = useNavigate()
+  const { accessToken, fullName, userId } = useAuthStore()
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<Tab>('orders')
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null)
@@ -274,6 +276,15 @@ export default function Profile() {
                             <p className="font-display font-bold mt-0.5">{formatINR(o.total)}</p>
                           </div>
                         </div>
+                        {o.status === 'PENDING' && (
+                          <button
+                            type="button"
+                            onClick={() => { savePendingOrderId(userId, o.id); navigate('/checkout') }}
+                            className="rounded-full bg-coral text-onaccent px-5 py-2 text-sm font-semibold"
+                          >
+                            Resume payment
+                          </button>
+                        )}
                       </div>
                     </motion.div>
                   )}
