@@ -18,11 +18,11 @@ export default function Footer() {
         </div>
 
         <div className="text-sm space-y-3">
-          <h4 className="font-semibold text-ink mb-1">Visit Us</h4>
-          <p className="flex items-start gap-2 text-ink/60"><MapPin className="h-4 w-4 mt-0.5 shrink-0" /> {BUSINESS.address}</p>
-          <p className="flex items-center gap-2 text-ink/60"><Phone className="h-4 w-4" /> {BUSINESS.phone}</p>
-          <p className="flex items-center gap-2 text-ink/60"><Mail className="h-4 w-4" /> {BUSINESS.email}</p>
-          <p className="flex items-center gap-2 text-ink/60"><Clock className="h-4 w-4" /> {BUSINESS.timings}</p>
+          <h4 className="font-semibold text-ink mb-1">Our Location</h4>
+          <p className="flex items-start gap-2 text-ink/60"><MapPin className="h-4 w-4 mt-0.5 shrink-0" /> {BUSINESS.location}</p>
+          {BUSINESS.phone && <p className="flex items-center gap-2 text-ink/60"><Phone className="h-4 w-4" /> {BUSINESS.phone}</p>}
+          {BUSINESS.email && <p className="flex items-center gap-2 text-ink/60"><Mail className="h-4 w-4" /> {BUSINESS.email}</p>}
+          {BUSINESS.timings && <p className="flex items-center gap-2 text-ink/60"><Clock className="h-4 w-4" /> {BUSINESS.timings}</p>}
         </div>
 
         <div className="text-sm space-y-2">
@@ -34,7 +34,7 @@ export default function Footer() {
 
         <div className="text-sm space-y-2">
           <h4 className="font-semibold text-ink mb-1">Store Info</h4>
-          <p className="text-ink/60">GSTIN: {BUSINESS.gstin}</p>
+          {BUSINESS.gstin && <p className="text-ink/60">GSTIN: {BUSINESS.gstin}</p>}
           <p className="text-ink/40 mt-4 text-xs">
             All payments on this demo run through a sandboxed test-mode gateway. No real money moves. See checkout for details.
           </p>

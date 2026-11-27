@@ -1,7 +1,7 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useRef } from 'react'
-import { api } from '../lib/api'
+import { api, apiErrorMessage } from '../lib/api'
 import { Product, Review } from '../types'
 import { formatINR, estimateEmi } from '../lib/format'
 import { useCart } from '../lib/useCart'
@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { triggerFlyToCart } from '../lib/flyToCart'
 
 export default function ProductDetail() {
+  const navigate = useNavigate()
   const { slug } = useParams()
   const { addToCart } = useCart()
   const qc = useQueryClient()
@@ -21,6 +22,8 @@ export default function ProductDetail() {
   const [selectedVariant, setSelectedVariant] = useState<number | undefined>(undefined)
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [cartError, setCartError] = useState('')
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', body: '' })
   const [reviewMsg, setReviewMsg] = useState('')
   const galleryImgRef = useRef<HTMLImageElement>(null)
@@ -63,15 +66,28 @@ export default function ProductDetail() {
   if (!product) return <div className="mx-auto max-w-7xl px-4 py-20 text-center">Product not found.</div>
 
   const activePrice = product.price + (product.variants.find((v) => v.id === selectedVariant)?.priceDelta || 0)
+  const availableStock = product.variants.find((v) => v.id === selectedVariant)?.stock ?? product.stock
   const variantGroups = Array.from(new Set(product.variants.map((v) => v.variantType)))
 
-  async function handleAddToCart() {
-    if (galleryImgRef.current) {
-      triggerFlyToCart(galleryImgRef.current.src, galleryImgRef.current)
+  async function handleAddToCart(): Promise<boolean> {
+    setCartError('')
+    setAdding(true)
+    try {
+      await addToCart(product!, qty, selectedVariant)
+      if (galleryImgRef.current) triggerFlyToCart(galleryImgRef.current.src, galleryImgRef.current)
+      setAdded(true)
+      setTimeout(() => setAdded(false), 1500)
+      return true
+    } catch (error) {
+      setCartError(apiErrorMessage(error))
+      return false
+    } finally {
+      setAdding(false)
     }
-    await addToCart(product!, qty, selectedVariant)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1500)
+  }
+
+  async function handleBuyNow() {
+    if (await handleAddToCart()) navigate('/cart')
   }
 
   async function submitReview(e: React.FormEvent) {
@@ -133,7 +149,7 @@ export default function ProductDetail() {
                 {product.variants.filter((v) => v.variantType === type).map((v) => (
                   <button
                     key={v.id}
-                    onClick={() => setSelectedVariant(v.id)}
+                    onClick={() => { setSelectedVariant(v.id); setQty(1) }}
                     className={`px-4 py-2 rounded-full text-sm border ${selectedVariant === v.id ? 'border-coral text-coral bg-coral/10' : 'border-hairline/20 text-ink/70'}`}
                   >
                     {v.variantValue}
@@ -147,18 +163,18 @@ export default function ProductDetail() {
             <div className="flex items-center border border-hairline/20 rounded-full">
               <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="px-3 py-2">-</button>
               <span className="px-3">{qty}</span>
-              <button onClick={() => setQty((q) => q + 1)} className="px-3 py-2">+</button>
+              <button onClick={() => setQty((q) => Math.min(availableStock, q + 1))} disabled={qty >= availableStock} className="px-3 py-2 disabled:opacity-40">+</button>
             </div>
             <button
               onClick={handleAddToCart}
-              disabled={product.stock === 0}
+              disabled={availableStock === 0 || adding}
               className="flex-1 rounded-full bg-coral text-onaccent font-semibold py-3 disabled:opacity-40 hover:shadow-glow transition-shadow"
             >
-              {added ? 'Added ✓' : product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+              {added ? 'Added ✓' : availableStock === 0 ? 'Out of Stock' : adding ? 'Adding...' : 'Add to Cart'}
             </button>
-            <Link to="/cart" onClick={handleAddToCart} className="rounded-full border border-plum text-plum font-semibold py-3 px-6 hover:bg-plum/10 transition-colors">
+            <button type="button" onClick={handleBuyNow} disabled={availableStock === 0 || adding} className="rounded-full border border-plum text-plum font-semibold py-3 px-6 hover:bg-plum/10 transition-colors disabled:opacity-40">
               Buy Now
-            </Link>
+            </button>
             {accessToken && (
               <button
                 onClick={toggleWishlist}
@@ -169,6 +185,7 @@ export default function ProductDetail() {
               </button>
             )}
           </div>
+          {cartError && <p role="alert" className="text-sm text-red-400 mt-2">{cartError}</p>}
 
           <div className="grid grid-cols-3 gap-3 mt-6 text-xs text-ink/60">
             <div className="flex flex-col items-center gap-1 text-center"><ShieldCheck className="h-5 w-5 text-coral" />Genuine Warranty</div>

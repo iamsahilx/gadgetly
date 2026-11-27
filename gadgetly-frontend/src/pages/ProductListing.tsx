@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react'
-import { useSearchParams, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { Product, Category } from '../types'
 import ProductCard from '../components/ProductCard'
 import SkeletonCard from '../components/SkeletonCard'
+import RetryMessage from '../components/RetryMessage'
 import { SlidersHorizontal } from 'lucide-react'
 
 export default function ProductListing() {
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
   const { slug: categorySlug } = useParams()
   const [showFilters, setShowFilters] = useState(false)
 
@@ -19,19 +21,20 @@ export default function ProductListing() {
   const minRating = params.get('minRating') || ''
   const sortBy = params.get('sortBy') || 'createdAt'
   const sortDir = params.get('sortDir') || 'desc'
-  const page = parseInt(params.get('page') || '0')
+  const requestedPage = Number(params.get('page') || '0')
+  const page = Number.isSafeInteger(requestedPage) && requestedPage >= 0 ? requestedPage : 0
 
-  const { data: categories } = useQuery({
+  const { data: categories, isLoading: categoriesLoading, isError: categoriesError, refetch: refetchCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => (await api.get<Category[]>('/categories')).data,
   })
 
-  const categoryIdFromSlug = categorySlug
-    ? categories?.flatMap((c) => [c, ...c.subcategories]).find((c) => c.slug === categorySlug)?.id
+  const selectedCategory = categorySlug
+    ? categories?.flatMap((c) => [c, ...c.subcategories]).find((c) => c.slug === categorySlug)
     : undefined
-  const categoryId = categoryIdFromSlug ? String(categoryIdFromSlug) : params.get('categoryId') || ''
+  const categoryId = categorySlug ? String(selectedCategory?.id || '') : params.get('categoryId') || ''
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError: productsError, refetch: refetchProducts } = useQuery({
     queryKey: ['products', q, categoryId, brand, minPrice, maxPrice, minRating, sortBy, sortDir, page],
     queryFn: async () =>
       (
@@ -50,6 +53,7 @@ export default function ProductListing() {
           },
         })
       ).data,
+    enabled: !categorySlug || !!selectedCategory,
   })
 
   function updateParam(key: string, value: string) {
@@ -57,7 +61,10 @@ export default function ProductListing() {
     if (value) next.set(key, value)
     else next.delete(key)
     next.delete('page')
-    setParams(next)
+    // A category route fixes its category by slug. Move to the general listing
+    // when a visitor chooses a different category or All.
+    if (categorySlug && key === 'categoryId') navigate(`/products${next.size ? `?${next}` : ''}`)
+    else setParams(next)
   }
 
   const brands = ['LG', 'Samsung', 'Sony', 'Whirlpool', 'IFB', 'Voltas', 'Mi', 'Haier', 'Prestige', 'Philips', 'Bajaj', 'JBL', 'Symphony']
@@ -66,7 +73,7 @@ export default function ProductListing() {
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-display text-2xl font-bold">
-          {q ? `Results for "${q}"` : 'All Products'}
+          {q ? `Results for "${q}"` : selectedCategory ? selectedCategory.name : 'All Products'}
         </h1>
         <button onClick={() => setShowFilters((v) => !v)} className="md:hidden flex items-center gap-1 text-sm border border-hairline/15 rounded-full px-3 py-1.5">
           <SlidersHorizontal className="h-4 w-4" /> Filters
@@ -78,6 +85,7 @@ export default function ProductListing() {
           <div>
             <h3 className="font-semibold text-sm mb-2">Category</h3>
             <div className="space-y-1 text-sm">
+              {categoriesError && <button type="button" className="text-coral" onClick={() => void refetchCategories()}>Could not load categories. Try again</button>}
               <button onClick={() => updateParam('categoryId', '')} className={`block ${!categoryId ? 'text-coral' : 'text-ink/60'}`}>All</button>
               {categories?.map((c) => (
                 <button key={c.id} onClick={() => updateParam('categoryId', String(c.id))}
@@ -137,11 +145,21 @@ export default function ProductListing() {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
-            {isLoading
-              ? Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
-              : data?.content?.map((p: Product) => <ProductCard key={p.id} product={p} />)}
-          </div>
+          {categorySlug && categoriesError ? (
+            <RetryMessage message="This category could not be loaded." onRetry={() => void refetchCategories()} />
+          ) : productsError ? (
+            <RetryMessage message="Products could not be loaded. Check the API and try again." onRetry={() => void refetchProducts()} />
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
+              {isLoading || (categorySlug && categoriesLoading)
+                ? Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
+                : data?.content?.map((p: Product) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          )}
+
+          {categorySlug && !categoriesLoading && !categoriesError && !selectedCategory && (
+            <p className="text-center text-ink/50 py-16">Category not found.</p>
+          )}
 
           {data?.content?.length === 0 && (
             <p className="text-center text-ink/50 py-16">No products found. Try adjusting your filters.</p>

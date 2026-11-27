@@ -1,31 +1,37 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { motion, AnimatePresence, useMotionValue } from 'framer-motion'
+import { motion, useMotionValue } from 'framer-motion'
 import { api, apiErrorMessage } from '../lib/api'
-import { Address, User } from '../types'
+import { Address, Order, User } from '../types'
 import { formatINR } from '../lib/format'
 import { useCart } from '../lib/useCart'
 import { useAuthStore } from '../store/authStore'
 import { CreditCard, Smartphone, Landmark, Banknote, ShieldAlert, CheckCircle2, XCircle, Plus, MapPin } from 'lucide-react'
 import Confetti from '../components/Confetti'
 import clsx from 'clsx'
+import { clearPendingOrderId, readPendingOrderId, savePendingOrderId } from '../lib/checkoutSession'
 
 type Method = 'CARD' | 'UPI' | 'NET_BANKING' | 'COD'
 type Step = 'address' | 'payment' | 'processing' | 'result'
+type CheckoutResult = { success: boolean; message: string; title?: string; retryable?: boolean }
 
 export default function Checkout() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { cart } = useCart()
-  const { accessToken, fullName } = useAuthStore()
-  const [step, setStep] = useState<Step>('address')
+  const { cart, isLoading: cartLoading, isError: cartError, refetch: refetchCart } = useCart()
+  const { accessToken, fullName, userId } = useAuthStore()
+  const [step, setStep] = useState<Step>(() => readPendingOrderId(userId) ? 'processing' : 'address')
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null)
   const [method, setMethod] = useState<Method>('CARD')
-  const [orderId, setOrderId] = useState<number | null>(null)
+  const [orderId, setOrderId] = useState<number | null>(() => readPendingOrderId(userId))
+  const [orderNumber, setOrderNumber] = useState('')
+  const [restoring, setRestoring] = useState(() => !!readPendingOrderId(userId))
   const [orderTotal, setOrderTotal] = useState(0)
-  const [result, setResult] = useState<{ success: boolean; message: string; orderNumber?: string } | null>(null)
+  const [result, setResult] = useState<CheckoutResult | null>(null)
   const [error, setError] = useState('')
+  const placingOrderRef = useRef(false)
+  const [placingOrder, setPlacingOrder] = useState(false)
 
   const [newAddress, setNewAddress] = useState({ label: 'Home', recipientName: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: '', isDefault: true })
   const [showAddressForm, setShowAddressForm] = useState(false)
@@ -42,6 +48,32 @@ export default function Checkout() {
     queryFn: async () => (await api.get<User>('/users/me')).data,
     enabled: !!accessToken,
   })
+
+  // Checkout clears the cart when it creates a pending order. Recover that
+  // order after a refresh so the visitor can complete or cancel payment.
+  useEffect(() => {
+    if (!restoring || !orderId) return
+    api.get<Order>(`/orders/${orderId}`)
+      .then(({ data }) => {
+        setOrderTotal(data.total)
+        setOrderNumber(data.orderNumber)
+        if (data.status === 'PENDING') setStep('payment')
+        else if (data.status === 'CONFIRMED') {
+          clearPendingOrderId(userId)
+          setResult({ success: true, message: 'Payment successful! Your order is confirmed.' })
+          setStep('result')
+        } else {
+          clearPendingOrderId(userId)
+          setResult({ success: false, title: 'Order Unavailable', message: `This order is ${data.status.toLowerCase()}. View your order history for details.` })
+          setStep('result')
+        }
+      })
+      .catch(() => {
+        setResult({ success: false, title: 'Order Status Unknown', message: 'We could not restore the pending order. Check your order history before trying again.' })
+        setStep('result')
+      })
+      .finally(() => setRestoring(false))
+  }, [orderId, restoring, userId])
 
   // Auto-select default address
   useEffect(() => {
@@ -91,15 +123,25 @@ export default function Checkout() {
   }
 
   async function placeOrder() {
+    if (placingOrderRef.current) return
     setError('')
     if (!selectedAddress) { setError('Please select or add a delivery address.'); return }
+    placingOrderRef.current = true
+    setPlacingOrder(true)
     try {
       const res = await api.post('/orders/checkout', { addressId: selectedAddress })
       setOrderId(res.data.id)
+      setOrderNumber(res.data.orderNumber)
       setOrderTotal(res.data.total)
+      savePendingOrderId(userId, res.data.id)
+      qc.invalidateQueries({ queryKey: ['cart'] })
+      qc.invalidateQueries({ queryKey: ['my-orders'] })
       setStep('payment')
     } catch (e) {
       setError(apiErrorMessage(e))
+    } finally {
+      placingOrderRef.current = false
+      setPlacingOrder(false)
     }
   }
 
@@ -121,17 +163,58 @@ export default function Checkout() {
       const res = await api.post('/payments/initiate', payload)
       qc.invalidateQueries({ queryKey: ['cart'] })
       if (res.data.status === 'SUCCESS') {
+        clearPendingOrderId(userId)
         setResult({ success: true, message: 'Payment successful! Your order is confirmed.' })
       } else if (res.data.status === 'INITIATED' && method === 'COD') {
-        setResult({ success: true, message: 'Order placed! Pay cash on delivery.' })
+        clearPendingOrderId(userId)
+        setResult({ success: true, title: 'Order Placed!', message: 'Order placed! Pay cash on delivery.' })
       } else {
-        setResult({ success: false, message: res.data.failureReason || 'Payment failed. Please try another method.' })
+        setResult({ success: false, retryable: true, message: res.data.failureReason || 'Payment failed. Please try another method.' })
       }
       setStep('result')
     } catch (e) {
-      setResult({ success: false, message: apiErrorMessage(e) })
+      // A connection can drop after the server confirms payment. Check the
+      // order before offering a retry that would charge the same order again.
+      try {
+        const { data } = await api.get<Order>(`/orders/${orderId}`)
+        if (data.status === 'CONFIRMED') {
+          clearPendingOrderId(userId)
+          setResult({ success: true, message: 'Payment successful! Your order is confirmed.' })
+        } else if (data.status === 'PENDING') {
+          setResult({ success: false, retryable: true, message: apiErrorMessage(e) })
+        } else {
+          clearPendingOrderId(userId)
+          setResult({ success: false, title: 'Order Unavailable', message: `This order is ${data.status.toLowerCase()}. View your order history for details.` })
+        }
+      } catch {
+        setResult({ success: false, title: 'Payment Status Unknown', message: 'We could not confirm the payment status. Check your order history before trying again.' })
+      }
       setStep('result')
     }
+    qc.invalidateQueries({ queryKey: ['my-orders'] })
+  }
+
+  async function cancelOrder() {
+    if (!orderId || !window.confirm('Cancel this pending order and release the reserved stock?')) return
+    setError('')
+    try {
+      await api.post(`/orders/${orderId}/cancel`)
+      clearPendingOrderId(userId)
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['my-orders'] }),
+        qc.invalidateQueries({ queryKey: ['products'] }),
+        qc.invalidateQueries({ queryKey: ['cart'] }),
+      ])
+      navigate('/products')
+    } catch (e) {
+      setError(apiErrorMessage(e))
+    }
+  }
+
+  function retryPayment() {
+    setSwiped(false)
+    dragX.set(0)
+    setStep('payment')
   }
 
   function handleDragEnd() {
@@ -145,6 +228,9 @@ export default function Checkout() {
 
   // Only the address step needs the cart: placing the order empties it on the server, and the
   // payment/result steps must stay visible after the cart query is refetched.
+  if (!accessToken) return <Navigate to="/login" replace />
+  if (step === 'address' && cartLoading) return <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">Loading cart...</div>
+  if (step === 'address' && cartError) return <div className="mx-auto max-w-3xl px-4 py-24 text-center">Could not load your cart. <button className="text-coral" onClick={() => refetchCart()}>Try again</button></div>
   if (step === 'address' && (!cart || cart.items.length === 0)) {
     return <div className="mx-auto max-w-3xl px-4 py-24 text-center text-ink/50">Your cart is empty.</div>
   }
@@ -318,8 +404,8 @@ export default function Checkout() {
             </motion.div>
           )}
 
-          <button onClick={placeOrder} className="w-full rounded-full bg-coral text-onaccent font-semibold py-3 mt-4 hover:shadow-glow transition-shadow">
-            Continue to Payment · {formatINR(cart!.total)}
+          <button onClick={placeOrder} disabled={placingOrder} className="w-full rounded-full bg-coral text-onaccent font-semibold py-3 mt-4 hover:shadow-glow transition-shadow disabled:opacity-50">
+            {placingOrder ? 'Creating order...' : <>Continue to Payment · {formatINR(cart!.total)}</>}
           </button>
         </div>
       )}
@@ -447,6 +533,9 @@ export default function Checkout() {
               </button>
             </div>
           )}
+          <button type="button" onClick={cancelOrder} className="block mx-auto mt-6 text-sm text-ink/50 hover:text-red-400 underline">
+            Cancel pending order
+          </button>
         </div>
       )}
 
@@ -457,7 +546,7 @@ export default function Checkout() {
             transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
             className="h-10 w-10 border-4 border-coral border-t-transparent rounded-full mx-auto mb-4"
           />
-          <p className="text-ink/60">Processing payment via dummy gateway (test mode)...</p>
+          <p className="text-ink/60">{restoring ? 'Restoring your pending order...' : 'Processing payment via dummy gateway (test mode)...'}</p>
         </div>
       )}
 
@@ -469,19 +558,21 @@ export default function Checkout() {
           ) : (
             <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
           )}
-          <h2 className="font-display text-xl font-bold mb-2">{result.success ? 'Order Confirmed!' : 'Payment Failed'}</h2>
+          <h2 className="font-display text-xl font-bold mb-2">{result.title || (result.success ? 'Order Confirmed!' : 'Payment Failed')}</h2>
           <p className="text-ink/60 mb-6">{result.message}</p>
+          {orderNumber && <p className="font-mono text-sm text-ink/50 mb-6">Order {orderNumber}</p>}
           <div className="flex gap-3 justify-center">
-            {result.success ? (
+            {!result.retryable ? (
               <button onClick={() => navigate('/profile')} className="rounded-full bg-coral text-onaccent px-6 py-3 font-semibold">
                 View My Orders
               </button>
             ) : (
-              <button onClick={() => setStep('payment')} className="rounded-full bg-coral text-onaccent px-6 py-3 font-semibold">
+              <button onClick={retryPayment} className="rounded-full bg-coral text-onaccent px-6 py-3 font-semibold">
                 Try Again
               </button>
             )}
           </div>
+          {result.retryable && <button type="button" onClick={cancelOrder} className="mt-4 text-sm text-ink/50 hover:text-red-400 underline">Cancel pending order</button>}
         </div>
       )}
     </div>

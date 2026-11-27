@@ -13,7 +13,10 @@ export default function Navbar({ cartCount }: { cartCount: number }) {
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault()
-    if (query.trim()) navigate(`/products?q=${encodeURIComponent(query.trim())}`)
+    if (query.trim()) {
+      navigate(`/products?q=${encodeURIComponent(query.trim())}`)
+      setMenuOpen(false)
+    }
   }
 
   return (
@@ -67,7 +70,7 @@ export default function Navbar({ cartCount }: { cartCount: number }) {
 
           <div className="flex items-center gap-3 md:hidden">
             <ThemeToggle />
-            <button onClick={() => setMenuOpen((v) => !v)}>
+            <button aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
               {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>

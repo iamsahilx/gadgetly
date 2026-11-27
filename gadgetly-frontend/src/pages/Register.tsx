@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, apiErrorMessage } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import { useGuestCartStore } from '../store/cartStore'
+import { mergeGuestCart } from '../lib/mergeGuestCart'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -16,8 +18,10 @@ export default function Register() {
     setLoading(true)
     try {
       const res = await api.post('/auth/register', form)
+      const hadGuestItems = useGuestCartStore.getState().items.length > 0
       setAuth(res.data)
-      navigate('/')
+      await mergeGuestCart()
+      navigate(hadGuestItems ? '/cart' : '/')
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {

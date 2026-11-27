@@ -61,7 +61,7 @@ export default function AdminOrders() {
             {pendingCount > 0 && (
               <span className="inline-flex items-center gap-1.5 text-sm font-semibold bg-amber-400/15 text-amber-400 border border-amber-400/30 px-3 py-1 rounded-full animate-pulse">
                 <AlertCircle className="h-3.5 w-3.5" />
-                {pendingCount} new
+                {pendingCount} awaiting payment
               </span>
             )}
           </h1>
@@ -123,7 +123,7 @@ export default function AdminOrders() {
                           {o.status}
                         </span>
                         {isPending && (
-                          <span className="text-[10px] text-amber-400 animate-pulse">● NEW</span>
+                          <span className="text-[10px] text-amber-400">● AWAITING PAYMENT</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-ink/40">
@@ -147,11 +147,11 @@ export default function AdminOrders() {
                     <div className="hidden sm:flex items-center gap-2 shrink-0">
                       {isPending && (
                         <button
-                          onClick={(e) => { e.stopPropagation(); quickAction(o.id, 'CONFIRMED') }}
+                          onClick={(e) => { e.stopPropagation(); quickAction(o.id, 'CANCELLED') }}
                           disabled={isUpdating}
-                          className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-400/30 hover:bg-emerald-500/25 transition-colors disabled:opacity-40"
+                          className="text-xs font-semibold px-3 py-1.5 rounded-full bg-red-500/15 text-red-400 border border-red-400/30 hover:bg-red-500/25 transition-colors disabled:opacity-40"
                         >
-                          {isUpdating ? '...' : 'Confirm'}
+                          {isUpdating ? '...' : 'Cancel'}
                         </button>
                       )}
                       {o.status === 'CONFIRMED' && (
@@ -256,25 +256,16 @@ export default function AdminOrders() {
                                 disabled={isUpdating}
                                 className="bg-panel border border-hairline/15 rounded-lg px-2 py-1 text-xs disabled:opacity-40"
                               >
-                                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                {(isPending ? STATUSES.filter((s) => s === 'PENDING' || s === 'CANCELLED') : STATUSES.filter((s) => s !== 'PENDING')).map((s) => <option key={s} value={s}>{s}</option>)}
                               </select>
                               {isPending && (
-                                <>
-                                  <button
-                                    onClick={() => quickAction(o.id, 'CONFIRMED')}
-                                    disabled={isUpdating}
-                                    className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-400/30 hover:bg-emerald-500/25 transition-colors disabled:opacity-40"
-                                  >
-                                    ✓ Confirm Order
-                                  </button>
-                                  <button
-                                    onClick={() => quickAction(o.id, 'CANCELLED')}
-                                    disabled={isUpdating}
-                                    className="text-xs font-semibold px-3 py-1.5 rounded-full bg-red-500/15 text-red-400 border border-red-400/30 hover:bg-red-500/25 transition-colors disabled:opacity-40"
-                                  >
-                                    ✕ Cancel
-                                  </button>
-                                </>
+                                <button
+                                  onClick={() => quickAction(o.id, 'CANCELLED')}
+                                  disabled={isUpdating}
+                                  className="text-xs font-semibold px-3 py-1.5 rounded-full bg-red-500/15 text-red-400 border border-red-400/30 hover:bg-red-500/25 transition-colors disabled:opacity-40"
+                                >
+                                  ✕ Cancel
+                                </button>
                               )}
                             </div>
                           )}
