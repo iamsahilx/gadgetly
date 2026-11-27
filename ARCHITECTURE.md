@@ -50,5 +50,7 @@ flowchart LR
 The seeded accounts, JWT secret, placeholder product images and dummy gateway are for a local
 lab only. Password reset is a mock response, and there is no real payment settlement,
 shipping integration or invoice generation. Contact and tax details are intentionally omitted
-until the shop supplies verified values. See `README.md` for setup and `IMPLEMENTATION_CHECKLIST.md`
-for verification and remaining work.
+until the shop supplies verified values. Production payments also need durable attempt records,
+provider idempotency, signed callbacks and reconciliation; the current single payment record
+and stock reservation flow are demo limits. See `README.md` for setup and
+`IMPLEMENTATION_CHECKLIST.md` for verification and remaining work.

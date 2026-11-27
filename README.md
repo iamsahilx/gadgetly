@@ -110,19 +110,20 @@ PAYMENT_PROVIDER=dummy        # env var / .env override
 - Every response from the dummy provider is labeled **"TEST MODE"** in both the API payload
   (`testMode: true` on `PaymentResponse`) and the checkout UI.
 
-### Switching to a real gateway (Razorpay / PayU / etc.)
+### Adding a real gateway (Razorpay / PayU / etc.)
 
-1. Implement `PaymentGatewayService` in a new class, e.g. `RazorpayGatewayProvider`
-   (starter template at `gadgetly-backend/src/main/resources/payment-provider-templates/RazorpayGatewayProvider.java.template`
-   — rename to `.java` and drop it into `service/payment/` to activate).
-2. Add the provider's SDK to `pom.xml` and its API keys as env vars.
-3. Set `PAYMENT_PROVIDER=razorpay` (or `payu`).
-4. **Nothing else changes.** Controllers, services, and the database schema are untouched —
-   `PaymentProviderResolver` picks up the new provider automatically by matching `providerName()`
-   against the config flag.
+`PaymentGatewayService` and the example
+`gadgetly-backend/src/main/resources/payment-provider-templates/RazorpayGatewayProvider.java.template`
+are starting points, not a production-ready provider switch. The demo stores one mutable
+payment record per order and the dummy provider keeps its ledger in memory. Before taking
+real payments, add durable attempt records and provider idempotency keys, verify signed
+provider callbacks, reconcile delayed outcomes, and define reservation expiry, settlement
+and refund handling. Add a Flyway migration for any schema changes and test the complete
+flow in the provider's sandbox.
 
-The REST endpoints (`POST /api/payments/initiate`, `POST /api/payments/verify`,
-`GET /api/payments/{id}/status`) stay identical regardless of which provider is active.
+Once those pieces are implemented, configure the provider SDK and credentials through
+environment variables and select it with `PAYMENT_PROVIDER`. The current payment endpoints
+can remain the browser-facing API, but a real provider may also need a callback endpoint.
 
 ---
 
