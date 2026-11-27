@@ -35,4 +35,10 @@ public class Coupon extends BaseEntity {
     private Integer usageCount = 0;
 
     private boolean active = true;
+
+    public boolean isUsableAt(Instant now) {
+        return active
+                && (expiresAt == null || expiresAt.isAfter(now))
+                && (usageLimit == null || (usageCount != null && usageCount < usageLimit));
+    }
 }

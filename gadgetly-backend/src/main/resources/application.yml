@@ -38,13 +38,13 @@ app:
     access-token-expiry-ms: ${JWT_ACCESS_EXPIRY:900000}      # 15 min
     refresh-token-expiry-ms: ${JWT_REFRESH_EXPIRY:604800000} # 7 days
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   business:
     name: ${BIZ_NAME:Gadgetly}
-    address: ${BIZ_ADDRESS:Main Market, Rampura Phul, Punjab - 151103}
-    phone: ${BIZ_PHONE:+91 98765 43210}
-    email: ${BIZ_EMAIL:support@gadgetly.in}
-    gstin: ${BIZ_GSTIN:03AABCG1234F1Z5}
+    address: ${BIZ_ADDRESS:}
+    phone: ${BIZ_PHONE:}
+    email: ${BIZ_EMAIL:}
+    gstin: ${BIZ_GSTIN:}
   payment:
     provider: ${PAYMENT_PROVIDER:dummy}  # dummy | razorpay | payu
 

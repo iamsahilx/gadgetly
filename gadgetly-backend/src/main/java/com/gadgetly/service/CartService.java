@@ -38,11 +38,17 @@ public class CartService {
         Cart cart = getOrCreateCart(userId);
         Product product = productRepository.findById(req.productId())
                 .orElseThrow(() -> ApiException.notFound("Product not found"));
+        if (!product.isActive()) {
+            throw ApiException.badRequest("Product is no longer available");
+        }
 
         ProductVariant variant = null;
         if (req.variantId() != null) {
             variant = variantRepository.findById(req.variantId())
                     .orElseThrow(() -> ApiException.notFound("Variant not found"));
+            if (!variant.getProduct().getId().equals(product.getId())) {
+                throw ApiException.badRequest("Variant does not belong to this product");
+            }
         }
 
         int qty = req.quantity() != null ? req.quantity() : 1;
@@ -139,10 +145,12 @@ public class CartService {
             var couponOpt = couponRepository.findByCodeIgnoreCase(cart.getAppliedCouponCode());
             if (couponOpt.isPresent()) {
                 Coupon c = couponOpt.get();
-                if (subtotal.compareTo(c.getMinOrderValue() != null ? c.getMinOrderValue() : BigDecimal.ZERO) >= 0) {
+                if (c.isUsableAt(java.time.Instant.now())
+                        && subtotal.compareTo(c.getMinOrderValue() != null ? c.getMinOrderValue() : BigDecimal.ZERO) >= 0) {
                     discount = c.getDiscountType() == Coupon.DiscountType.FLAT
                             ? c.getDiscountValue()
-                            : subtotal.multiply(c.getDiscountValue()).divide(BigDecimal.valueOf(100));
+                            : subtotal.multiply(c.getDiscountValue()).divide(BigDecimal.valueOf(100))
+                                    .setScale(2, java.math.RoundingMode.HALF_UP);
                     if (discount.compareTo(subtotal) > 0) discount = subtotal;
                 }
             }

@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
+
 /**
  * Business-logic layer for payments. This is the ONLY class (besides controllers)
  * that touches payment concerns, and it depends purely on PaymentGatewayService —
@@ -27,10 +29,21 @@ public class PaymentService {
     private final OrderService orderService;
 
     @Transactional
-    public PaymentResponse initiate(PaymentInitiateRequest req) {
+    public PaymentResponse initiate(Long userId, PaymentInitiateRequest req) {
         Order order = orderService.getEntity(req.orderId());
+        requireOwner(order, userId);
         if (order.getStatus() != Order.Status.PENDING) {
             throw ApiException.badRequest("Order is not awaiting payment");
+        }
+
+        // An order has one payment record. A declined attempt may be retried using that
+        // record, while an initiated attempt must not create another gateway charge.
+        Payment payment = paymentRepository.findByOrderId(order.getId()).orElse(null);
+        if (payment != null && payment.getStatus() == Payment.Status.INITIATED) {
+            return toResponse(payment, payment.getProvider(), "Payment already initiated");
+        }
+        if (payment != null && payment.getStatus() != Payment.Status.FAILED) {
+            throw ApiException.conflict("Payment cannot be retried");
         }
 
         PaymentGatewayService gateway = providerResolver.resolve();
@@ -41,37 +54,61 @@ public class PaymentService {
 
         var result = gateway.initiate(command);
 
-        Payment payment = new Payment();
+        if (payment == null) payment = new Payment();
         payment.setOrder(order);
         payment.setMethod(Payment.Method.valueOf(req.method().toUpperCase()));
         payment.setAmount(order.getTotal());
         payment.setProvider(gateway.providerName());
         payment.setProviderReference(result.providerReference());
         payment.setStatus(mapStatus(result.status()));
-        if (result.status() == PaymentGatewayService.GatewayStatus.FAILED) {
-            payment.setFailureReason(result.message());
-        }
+        payment.setFailureReason(result.status() == PaymentGatewayService.GatewayStatus.FAILED
+                ? result.message() : null);
         payment = paymentRepository.save(payment);
 
-        if (result.status() == PaymentGatewayService.GatewayStatus.SUCCESS) {
+        if (result.status() == PaymentGatewayService.GatewayStatus.SUCCESS
+                || (payment.getMethod() == Payment.Method.COD
+                        && result.status() == PaymentGatewayService.GatewayStatus.INITIATED)) {
             orderService.markConfirmedAndDecrementStock(order.getId());
-        } else if (result.status() == PaymentGatewayService.GatewayStatus.FAILED) {
-            orderService.markFailed(order.getId());
         }
-        // INITIATED (COD) leaves the order PENDING until delivery/settlement in a real flow.
+        // Failed attempts leave the order PENDING so the user can retry the same order.
+        // Stock remains reserved until success or explicit cancellation. Accepted COD
+        // orders are confirmed even though payment is due on delivery.
 
         return toResponse(payment, gateway.providerName(), result.message());
     }
 
     @Transactional
-    public PaymentResponse verify(Long paymentId, String providerReference) {
+    public PaymentResponse verify(Long userId, Long paymentId, String providerReference) {
+        // Lock the order before loading its payment, matching initiate/cancel lock order.
+        // This prevents two verifications or a cancellation from racing each other.
+        Long orderId = paymentRepository.findOrderIdById(paymentId)
+                .orElseThrow(() -> ApiException.notFound("Payment not found"));
+        Order order = orderService.getEntity(orderId);
+        requireOwner(order, userId);
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> ApiException.notFound("Payment not found"));
+        if (order.getStatus() == Order.Status.CANCELLED) {
+            throw ApiException.conflict("Cancelled order cannot be paid");
+        }
+        if (!Objects.equals(payment.getProviderReference(), providerReference)) {
+            throw ApiException.badRequest("Payment reference does not match this payment");
+        }
+        if (payment.getStatus() != Payment.Status.INITIATED) {
+            return toResponse(payment, payment.getProvider(), "Payment already resolved");
+        }
 
         PaymentGatewayService gateway = providerResolver.resolve();
-        var result = gateway.verify(providerReference);
+        if (!gateway.providerName().equals(payment.getProvider())) {
+            throw ApiException.conflict("Payment provider is unavailable");
+        }
+        var result = gateway.verify(payment.getProviderReference());
+        if (!Objects.equals(payment.getProviderReference(), result.providerReference())) {
+            throw ApiException.conflict("Payment provider returned a different reference");
+        }
 
         payment.setStatus(mapStatus(result.status()));
+        payment.setFailureReason(result.status() == PaymentGatewayService.GatewayStatus.FAILED
+                ? result.message() : null);
         payment = paymentRepository.save(payment);
 
         if (result.status() == PaymentGatewayService.GatewayStatus.SUCCESS) {
@@ -81,12 +118,20 @@ public class PaymentService {
         return toResponse(payment, gateway.providerName(), result.message());
     }
 
-    public PaymentResponse getStatus(Long paymentId) {
+    @Transactional(readOnly = true)
+    public PaymentResponse getStatus(Long userId, Long paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> ApiException.notFound("Payment not found"));
-        PaymentGatewayService gateway = providerResolver.resolve();
-        var status = gateway.getStatus(payment.getProviderReference());
-        return toResponse(payment, gateway.providerName(), "Status: " + status);
+        requireOwner(payment.getOrder(), userId);
+        // The database is the source of truth. The dummy provider's in-memory ledger
+        // disappears on restart and must not override a persisted successful payment.
+        return toResponse(payment, payment.getProvider(), "Status: " + payment.getStatus());
+    }
+
+    private void requireOwner(Order order, Long userId) {
+        if (!order.getUser().getId().equals(userId)) {
+            throw ApiException.forbidden("Not your order");
+        }
     }
 
     private Payment.Status mapStatus(PaymentGatewayService.GatewayStatus status) {
