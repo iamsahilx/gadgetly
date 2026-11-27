@@ -41,7 +41,10 @@ payment provider.
 ## Outside this lab demo
 
 Real payment settlement, password-reset delivery, shipping and invoice generation require
-provider integrations. Seeded passwords/JWT secret and placeholder images are demo-only.
+provider integrations. A real payment provider also needs durable attempt records,
+idempotency, signed callbacks and reconciliation. Seeded passwords/JWT secret and placeholder
+images are demo-only.
+
 Shop contact and tax details must come from the shop before publication. The production
 dependency audit reports two moderate React Router advisories; the full audit
 also reports six development-tool advisories. Their fixes require major-version migrations,
