@@ -36,7 +36,7 @@ payment provider.
   payment requests produced one success and one 400 without duplicate rows or stock changes;
   a one-use coupon allowed one concurrent redemption, and cancellation released its quota.
   Admin confirmation of an unpaid pending order returned 409.
-- [ ] GitHub CI on the final pushed commit, including Docker Compose image builds.
+- [x] GitHub CI on PR #2: backend, frontend and Docker Compose image builds passed.
 
 ## Outside this lab demo
 
@@ -45,5 +45,5 @@ provider integrations. Seeded passwords/JWT secret and placeholder images are de
 Shop contact and tax details must come from the shop before publication. The production
 dependency audit reports two moderate React Router advisories; the full audit
 also reports six development-tool advisories. Their fixes require major-version migrations,
-which are outside this lab change. Docker was unavailable on this Mac, so its image builds
-are delegated to GitHub CI.
+which are outside this lab change. Docker was unavailable on this Mac; GitHub CI built
+both application images from the Compose configuration.
